@@ -1,0 +1,4 @@
+/.idea/
+*.session
+*.session-journal
+config.json
