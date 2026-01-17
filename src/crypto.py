@@ -6,6 +6,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from base64 import urlsafe_b64encode, urlsafe_b64decode
 
+
 def generate_key(password, salt):
     """Генерирует ключ шифрования на основе пароля и соли."""
     kdf = PBKDF2HMAC(
