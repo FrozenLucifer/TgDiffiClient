@@ -1,5 +1,7 @@
 import json
 import asyncio
+import os
+
 from src.telegram_client import TGClient
 from src import crypto
 
@@ -20,6 +22,7 @@ def help_info():
     /help - вывести команды
     /d [max] - список диалогов [c-максимальное количество]
     /s <id> - начать защищенный диалог
+    /f - отправить файл
     /c - отменить действие
     ''')
 
@@ -44,6 +47,18 @@ async def menu_handler():
                 user_id = None
             else:
                 print("Нечего отменять.")
+        elif text == '/f':
+            if not user_id:
+                print("Сначала начни диалог (/s <id>)")
+                continue
+
+            path = await async_input("Путь к файлу: ")
+            if not os.path.isfile(path):
+                print("Файл не найден")
+                continue
+
+            await client.send_file_encrypted(user_id, path, key)
+
         else:
             if user_id:
                 encrypted_message = crypto.encrypt_message(text, key)

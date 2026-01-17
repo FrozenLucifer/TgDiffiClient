@@ -1,5 +1,8 @@
 import asyncio
+import os
 import re
+
+import qrcode
 from telethon import TelegramClient, events
 from telethon.tl.custom.message import Message
 
@@ -9,15 +12,32 @@ PREFIX = 'crypto:'
 
 
 class TGClient:
-    def __init__(self, api_id, api_hash, session_name='session_name'):
+    def __init__(self, api_id, api_hash, session_name='tgdiffi'):
         self.client = TelegramClient(session_name, api_id, api_hash)
         self.user_id = None
         self.key = None
         self.handler = None
 
     async def start(self):
-        await self.client.start()
+        # await self.client.start()
         await self.client.connect()
+        if not await self.client.is_user_authorized():
+            qr = await self.client.qr_login()
+            print("\n📱 QR-Code scannen:")
+            print("Telegram → Einstellungen → Geräte → Gerät hinzufügen\n")
+
+            # ASCII QR ohne console-Module
+            qr_img = qrcode.QRCode(border=1)
+            qr_img.add_data(qr.url)
+            qr_img.make(fit=True)
+
+            # ASCII-Ausgabe
+            qr_matrix = qr_img.get_matrix()
+            for row in qr_matrix:
+                print("".join("██" if cell else "  " for cell in row))
+
+            await qr.wait()
+
 
     async def get_dialogs(self, max_dialogs=10):
         k = 0
@@ -63,14 +83,51 @@ class TGClient:
 
     def register_message_handler(self, user_id, key):
         async def handle_new_message(event):
-            message: str = event.message.message
-            if message == PREFIX + "stop":
+            msg = event.message
+
+            if msg.message == PREFIX + "stop":
                 print("Пользователь остановил диалог")
                 self.client.remove_event_handler(self.handler)
-            else:
-                if message.startswith(PREFIX):
-                    message = message.removeprefix(PREFIX)
-                    message = crypto.decrypt_message(message, key)
-                print(f"Получено сообщение: {message}")
+                return
+
+            if msg.file:
+                if msg.message and msg.message.startswith(PREFIX + "file:"):
+                    name = msg.message.removeprefix(PREFIX + "file:")
+                    path = await msg.download_media()
+
+                    with open(path, 'rb') as f:
+                        encrypted = f.read()
+
+                    data = crypto.decrypt_bytes(encrypted, key)
+
+                    out = f"recv_{name}"
+                    with open(out, 'wb') as f:
+                        f.write(data)
+
+                    print(f"Получен файл: {out}")
+                return
+
+            if msg.message and msg.message.startswith(PREFIX):
+                text = msg.message.removeprefix(PREFIX)
+                text = crypto.decrypt_message(text, key)
+                print(f"Получено сообщение: {text}")
 
         self.handler = self.client.on(events.NewMessage(from_users=[user_id]))(handle_new_message)
+
+    async def send_file_encrypted(self, user_id, path, key):
+        with open(path, 'rb') as f:
+            data = f.read()
+
+        encrypted = crypto.encrypt_bytes(data, key)
+
+        tmp_path = path + ".crypt"
+        with open(tmp_path, 'wb') as f:
+            f.write(encrypted)
+
+        await self.client.send_file(
+            user_id,
+            tmp_path,
+            caption=PREFIX + f"file:{os.path.basename(path)}"
+        )
+
+        os.remove(tmp_path)

@@ -67,3 +67,44 @@ def decrypt_message(message, key_int):
         return plaintext.decode()
     except:
         raise ValueError("Padding error during decryption.")
+
+
+def encrypt_bytes(data: bytes, key_int: int) -> bytes:
+    salt = os.urandom(16)
+    key = generate_key(str(key_int), salt)
+
+    iv = os.urandom(16)
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=default_backend()
+    )
+    encryptor = cipher.encryptor()
+
+    padder = padding.PKCS7(algorithms.AES.block_size).padder()
+    padded = padder.update(data) + padder.finalize()
+
+    ciphertext = encryptor.update(padded) + encryptor.finalize()
+    return salt + iv + ciphertext
+
+
+def decrypt_bytes(data: bytes, key_int: int) -> bytes:
+    if len(data) < 32:
+        raise ValueError("Invalid encrypted data")
+
+    salt = data[:16]
+    iv = data[16:32]
+    ciphertext = data[32:]
+
+    key = generate_key(str(key_int), salt)
+    cipher = Cipher(
+        algorithms.AES(key),
+        modes.CBC(iv),
+        backend=default_backend()
+    )
+    decryptor = cipher.decryptor()
+
+    padded = decryptor.update(ciphertext) + decryptor.finalize()
+
+    unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+    return unpadder.update(padded) + unpadder.finalize()
