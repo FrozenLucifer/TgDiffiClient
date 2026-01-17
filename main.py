@@ -52,9 +52,17 @@ async def menu_handler():
                 print("Сначала начни диалог (/s <id>)")
                 continue
 
-            path = await async_input("Путь к файлу: ")
-            if not os.path.isfile(path):
-                print("Файл не найден")
+            from tkinter import Tk
+            from tkinter.filedialog import askopenfilename
+
+            root = Tk()
+            root.withdraw()
+
+            path = askopenfilename(title="Выберите файл для отправки")
+            root.destroy()
+
+            if not path:
+                print("Файл не выбран")
                 continue
 
             await client.send_file_encrypted(user_id, path, key)

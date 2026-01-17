@@ -19,25 +19,13 @@ class TGClient:
         self.handler = None
 
     async def start(self):
-        # await self.client.start()
         await self.client.connect()
         if not await self.client.is_user_authorized():
             qr = await self.client.qr_login()
-            print("\n📱 QR-Code scannen:")
-            print("Telegram → Einstellungen → Geräte → Gerät hinzufügen\n")
-
-            # ASCII QR ohne console-Module
-            qr_img = qrcode.QRCode(border=1)
-            qr_img.add_data(qr.url)
-            qr_img.make(fit=True)
-
-            # ASCII-Ausgabe
-            qr_matrix = qr_img.get_matrix()
-            for row in qr_matrix:
-                print("".join("██" if cell else "  " for cell in row))
-
+            print("Telegram → Настройки → Устройства → Добавить устройство\n")
+            qr_img = qrcode.make(qr.url)
+            qr_img.show(title="Telegram QR Login")
             await qr.wait()
-
 
     async def get_dialogs(self, max_dialogs=10):
         k = 0
